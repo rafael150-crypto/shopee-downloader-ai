@@ -81,4 +81,13 @@ if uploaded_file:
                 segundo = int(match.group(1)) if match else 1
                 cap = cv2.VideoCapture(tfile.name)
                 cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
-                ret, frame = cap
+                ret, frame = cap.read()
+                if ret:
+                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption=f"Sugestão de Capa (Segundo {segundo})")
+                cap.release()
+                
+                # Deleta o arquivo do Google Cloud para não acumular
+                genai.delete_file(video_file.name)
+                
+        except Exception as e:
+            st.error(f"Erro na análise: {e}")
