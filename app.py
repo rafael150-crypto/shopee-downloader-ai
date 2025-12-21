@@ -9,7 +9,7 @@ import time
 # Configuração da Página
 st.set_page_config(page_title="Estrategista de Achadinhos AI", page_icon="📈")
 
-# Estilo focado em conversão e clareza
+# Estilo focado em conversão
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; }
@@ -35,17 +35,17 @@ st.markdown("""
 st.title("📈 Estrategista de Vendas AI")
 st.write("Analise seu vídeo e gere títulos, legendas e capas que convertem em vendas.")
 
-# 1. CONFIGURAÇÃO DA API (Verifique se sua chave está correta)
+# 1. CONFIGURAÇÃO DA API
 API_KEY = "AIzaSyCVtbBNnoqftmf8dZ5otTErswiBnYK7XZ0"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('models/gemini-1.5-flash')
 
-# 2. UPLOAD DO VÍDEO LIMPO
+# 2. UPLOAD DO VÍDEO
 st.markdown("### 📽️ Passo 1: Carregar Vídeo")
 uploaded_file = st.file_uploader("Selecione o vídeo (sem marca d'água)", type=["mp4", "mov", "avi"])
 
 if uploaded_file:
-    # Criar arquivo temporário para processamento
+    # Criar arquivo temporário
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(uploaded_file.read())
     
@@ -64,17 +64,16 @@ if uploaded_file:
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
-                # Prompt focado em gatilhos mentais e vendas
                 prompt = """
                 Atue como um Copywriter especialista em TikTok e YouTube Shorts para afiliados da Shopee.
                 Analise o vídeo do produto e forneça:
                 
                 1. TRÊS OPÇÕES DE TÍTULOS (com gatilhos de curiosidade, escassez ou urgência).
-                2. LEGENDA PERSUASIVA (focada no benefício principal e chamada para ação para o link na bio).
+                2. LEGENDA PERSUASIVA (focada no benefício principal e chamada para ação).
                 3. 5 HASHTAGS (específicas para o nicho do produto).
-                4. MELHOR SEGUNDO PARA CAPA: Indique em qual segundo o produto aparece melhor e escreva apenas 'CAPA: X'.
+                4. MELHOR SEGUNDO PARA CAPA: Indique o segundo exato e escreva apenas 'CAPA: X'.
                 
-                Use emojis adequados. NÃO use as palavras 'Títulos:', 'Legenda:' ou 'Hashtags:'.
+                NÃO use as palavras 'Títulos:', 'Legenda:' ou 'Hashtags:'.
                 """
                 
                 response = model.generate_content([video_file, prompt])
@@ -102,8 +101,11 @@ if uploaded_file:
                 if ret:
                     st.markdown("### 🖼️ Sugestão de Capa")
                     st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
-                    st.caption(f"Cena sugerida no segundo {segundo} para atrair mais cliques.")
+                    st.caption(f"Cena sugerida no segundo {segundo}.")
                 cap.release()
                 
         except Exception as e:
-            st.error(f"
+            st.error(f"Erro na análise: {e}")
+
+st.markdown("---")
+st.caption("Dica: Use vídeos limpos para que a IA identifique melhor o produto.")
