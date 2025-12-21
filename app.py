@@ -36,16 +36,18 @@ st.title("📈 Estrategista de Vendas AI")
 st.write("Analise seu vídeo e gere títulos, legendas e capas que convertem em vendas.")
 
 # 1. CONFIGURAÇÃO DA API
+# Substitua pela sua chave real
 API_KEY = "AIzaSyCVtbBNnoqftmf8dZ5otTErswiBnYK7XZ0"
 genai.configure(api_key=API_KEY)
-model = genai.GenerativeModel('models/gemini-1.5-flash')
+
+# Ajuste do modelo para evitar o erro 404
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # 2. UPLOAD DO VÍDEO
 st.markdown("### 📽️ Passo 1: Carregar Vídeo")
 uploaded_file = st.file_uploader("Selecione o vídeo (sem marca d'água)", type=["mp4", "mov", "avi"])
 
 if uploaded_file:
-    # Criar arquivo temporário
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(uploaded_file.read())
     
@@ -56,14 +58,19 @@ if uploaded_file:
     
     if st.button("✨ CRIAR ESTRATÉGIA VIRAL"):
         try:
-            with st.spinner("Analisando o produto e criando os textos..."):
+            with st.spinner("🤖 Analisando o produto e criando os textos..."):
                 # Enviar vídeo para o Gemini
                 video_file = genai.upload_file(path=tfile.name, mime_type="video/mp4")
                 
+                # Aguardar o processamento do vídeo pelo Google
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
+                if video_file.state.name == "FAILED":
+                    st.error("Erro no processamento do vídeo pelo Google. Tente novamente.")
+                    st.stop()
+
                 prompt = """
                 Atue como um Copywriter especialista em TikTok e YouTube Shorts para afiliados da Shopee.
                 Analise o vídeo do produto e forneça:
@@ -73,7 +80,7 @@ if uploaded_file:
                 3. 5 HASHTAGS (específicas para o nicho do produto).
                 4. MELHOR SEGUNDO PARA CAPA: Indique o segundo exato e escreva apenas 'CAPA: X'.
                 
-                NÃO use as palavras 'Títulos:', 'Legenda:' ou 'Hashtags:'.
+                NÃO use as palavras 'Títulos:', 'Legenda:' ou 'Hashtags:'. Use emojis.
                 """
                 
                 response = model.generate_content([video_file, prompt])
@@ -103,6 +110,9 @@ if uploaded_file:
                     st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
                     st.caption(f"Cena sugerida no segundo {segundo}.")
                 cap.release()
+                
+                # Deletar arquivo do servidor do Google para economizar espaço
+                genai.delete_file(video_file.name)
                 
         except Exception as e:
             st.error(f"Erro na análise: {e}")
