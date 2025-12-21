@@ -9,34 +9,27 @@ import time
 # Configuração da Página
 st.set_page_config(page_title="Estrategista de Achadinhos AI", page_icon="📈")
 
-# Estilo focado em conversão
-st.markdown("""
-    <style>
-    .stApp { background-color: #ffffff; }
-    .stButton>button { 
-        width: 100%; border-radius: 25px; height: 3.5em; 
-        background-color: #EE4D2D; color: white; 
-        font-weight: bold; font-size: 1.1em; border: none;
-    }
-    .strategy-card { 
-        background-color: #f9f9f9; padding: 20px; 
-        border-radius: 15px; border: 1px solid #eeeeee;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
 st.title("📈 Estrategista de Vendas AI")
 
 # 1. CONFIGURAÇÃO DA API
-API_KEY = "AIzaSyCVtbBNnoqftmf8dZ5otTErswiBnYK7XZ0" # Certifique-se de usar sua chave real
+API_KEY = "AIzaSyAR9yPU8zc-pOCWKWn5JCLy7ykvRXA2k8g"
 genai.configure(api_key=API_KEY)
 
-# O segredo está em usar apenas 'gemini-1.5-flash' sem o prefixo 'models/'
-# A biblioteca cuida de colocar a versão v1 ou v1beta automaticamente
-model = genai.GenerativeModel('gemini-1.5-flash')
+# --- FUNÇÃO PARA ENCONTRAR O MODELO DISPONÍVEL ---
+def get_model():
+    # Tentamos os nomes oficiais em ordem de prioridade
+    for model_name in ['gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-pro-vision']:
+        try:
+            m = genai.GenerativeModel(model_name)
+            # Teste rápido de chamada
+            return m
+        except:
+            continue
+    return genai.GenerativeModel('gemini-1.5-flash') # Fallback padrão
+
+model = get_model()
 
 # 2. UPLOAD DO VÍDEO
-st.markdown("### 📽️ Passo 1: Carregar Vídeo")
 uploaded_file = st.file_uploader("Selecione o vídeo (sem marca d'água)", type=["mp4", "mov", "avi"])
 
 if uploaded_file:
@@ -48,46 +41,31 @@ if uploaded_file:
     if st.button("✨ CRIAR ESTRATÉGIA VIRAL"):
         try:
             with st.spinner("🤖 Analisando o produto..."):
-                # Faz o upload do arquivo para o servidor do Gemini
+                # Faz o upload para o Gemini
                 video_file = genai.upload_file(path=tfile.name)
                 
-                # Aguarda o processamento (obrigatório para vídeos)
+                # Aguarda o processamento
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
                 prompt = """
-                Analise este vídeo de produto para YouTube Shorts/TikTok. Forneça:
+                Analise este vídeo de produto. Forneça:
                 1. Três opções de títulos virais.
-                2. Legenda persuasiva com emojis.
+                2. Legenda persuasiva.
                 3. 5 hashtags.
                 4. Escreva apenas 'CAPA: X' (onde X é o segundo sugerido).
                 """
                 
-                # Gera o conteúdo
+                # Chamada da geração
                 response = model.generate_content([video_file, prompt])
-                res_text = response.text
                 
                 st.success("✅ Estratégia criada!")
+                st.code(response.text.split('CAPA:')[0])
                 
-                # Exibe o texto para copiar
-                texto_limpo = "\n".join([l for l in res_text.split('\n') if "CAPA:" not in l])
-                st.markdown('<div class="strategy-card">', unsafe_allow_html=True)
-                st.code(texto_limpo, language="")
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-                # Processa a Capa
-                match = re.search(r'CAPA:\s*(\d+)', res_text)
-                segundo = int(match.group(1)) if match else 1
-                cap = cv2.VideoCapture(tfile.name)
-                cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
-                ret, frame = cap.read()
-                if ret:
-                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption=f"Sugestão de Capa (Segundo {segundo})")
-                cap.release()
-                
-                # Deleta o arquivo do Google Cloud para não acumular
+                # Limpeza
                 genai.delete_file(video_file.name)
                 
         except Exception as e:
             st.error(f"Erro na análise: {e}")
+            st.info("Dica: Se o erro persistir, verifique se sua chave API é do 'Google AI Studio'.")
