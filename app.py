@@ -8,26 +8,39 @@ import time
 
 # Configuração da Página
 st.set_page_config(page_title="Estrategista de Achadinhos AI", page_icon="📈")
-
 st.title("📈 Estrategista de Vendas AI")
 
 # 1. CONFIGURAÇÃO DA API
-# Certifique-se de que esta é uma chave do Google AI Studio
 API_KEY = "AIzaSyAR9yPU8zc-pOCWKWn5JCLy7ykvRXA2k8g"
 genai.configure(api_key=API_KEY)
 
-# --- SOLUÇÃO PARA O ERRO 404 ---
-# Tentamos instanciar o modelo sem o prefixo 'models/' que causa o conflito
-try:
-    model = genai.GenerativeModel('gemini-1.5-flash')
-except Exception:
-    model = genai.GenerativeModel('gemini-1.5-flash-latest')
+# --- FUNÇÃO PARA PEGAR O MODELO DISPONÍVEL ---
+def carregar_melhor_modelo():
+    try:
+        # Lista os modelos disponíveis para a sua chave
+        modelos_disponiveis = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        # Prioridade de escolha
+        prioridade = ['models/gemini-2.0-flash', 'models/gemini-1.5-flash', 'models/gemini-1.5-pro']
+        
+        for p in prioridade:
+            if p in modelos_disponiveis:
+                return genai.GenerativeModel(p)
+        
+        # Se não achar os nomes exatos, pega o primeiro que tiver 'gemini'
+        for m in modelos_disponiveis:
+            if 'gemini' in m:
+                return genai.GenerativeModel(m)
+    except Exception as e:
+        st.error(f"Erro ao listar modelos: {e}")
+    return genai.GenerativeModel('gemini-1.5-flash') # Fallback final
+
+model = carregar_melhor_modelo()
 
 # 2. UPLOAD DO VÍDEO
-uploaded_file = st.file_uploader("Selecione o vídeo (sem marca d'água)", type=["mp4", "mov", "avi"])
+uploaded_file = st.file_uploader("Selecione o vídeo do produto", type=["mp4", "mov", "avi"])
 
 if uploaded_file:
-    # Salvando temporariamente o vídeo
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(uploaded_file.read())
     
@@ -35,56 +48,32 @@ if uploaded_file:
     
     if st.button("✨ GERAR ESTRATÉGIA VIRAL"):
         try:
-            with st.spinner("🤖 Analisando o produto..."):
-                # Faz o upload para o Gemini
+            with st.spinner(f"🤖 Analisando com o modelo: {model.model_name}"):
+                # Upload para o servidor
                 video_file = genai.upload_file(path=tfile.name)
                 
-                # Aguarda o processamento pelo Google
+                # Aguarda processamento
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
-                if video_file.state.name == "FAILED":
-                    st.error("O processamento do vídeo falhou no servidor do Google.")
-                    st.stop()
+                prompt = "Analise este vídeo de produto. Forneça 3 títulos virais, legenda persuasiva e 5 tags. Termine com 'CAPA: X' (segundo sugerido)."
                 
-                prompt = """
-                Analise este vídeo de produto para redes sociais. Forneça:
-                1. Três opções de títulos curtos e virais.
-                2. Legenda persuasiva com foco em venda.
-                3. 5 hashtags estratégicas.
-                4. Escreva exatamente: 'CAPA: X' (onde X é o segundo sugerido).
-                """
-                
-                # Gerando o conteúdo
                 response = model.generate_content([video_file, prompt])
                 
-                st.success("✅ Estratégia criada!")
+                st.success("✅ Conteúdo gerado!")
+                st.code(re.sub(r'CAPA:.*', '', response.text).strip())
                 
-                # Exibindo o texto (removendo a parte da capa do texto principal)
-                full_text = response.text
-                clean_text = re.sub(r'CAPA:.*', '', full_text).strip()
-                st.code(clean_text, language="")
-                
-                # Extraindo e exibindo a Capa
-                match = re.search(r'CAPA:\s*(\d+)', full_text)
+                # Capa
+                match = re.search(r'CAPA:\s*(\d+)', response.text)
                 segundo = int(match.group(1)) if match else 1
-                
                 cap = cv2.VideoCapture(tfile.name)
                 cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
                 ret, frame = cap.read()
                 if ret:
-                    st.subheader(f"🖼️ Sugestão de Capa (Segundo {segundo})")
-                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), use_container_width=True)
+                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption="Sugestão de Capa")
                 cap.release()
                 
-                # Limpando arquivo do Google
                 genai.delete_file(video_file.name)
-                
         except Exception as e:
-            # Caso o erro 404 persista, damos uma instrução clara
-            if "404" in str(e):
-                st.error("Erro de Modelo (404): O Google não encontrou o modelo gemini-1.5-flash.")
-                st.info("Tente substituir no código 'gemini-1.5-flash' por 'gemini-pro-vision' ou verifique sua chave API.")
-            else:
-                st.error(f"Erro na análise: {e}")
+            st.error(f"Erro na análise: {e}")
