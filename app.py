@@ -24,34 +24,36 @@ if url_input:
     video_url = url_input
     
     try:
-        # --- PASSO 1: SEGUIR LINK CURTO ---
+        # --- PASSO 1: DECODIFICAÇÃO ---
         if "shp.ee" in url_input or "shopee.com.br" in url_input:
-            with st.spinner("🔍 Decodificando link da Shopee..."):
+            with st.spinner("🔍 Localizando vídeo..."):
                 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'}
-                # Segue o redirecionamento até o final para pegar a URL gigante
-                response = requests.get(url_input, headers=headers, allow_redirects=True, timeout=10)
+                response = requests.get(url_input, headers=headers, allow_redirects=True, timeout=15)
                 url_final = response.url
                 
-                # --- PASSO 2: EXTRAIR LINK DO VÍDEO DENTRO DA URL GIGANTE ---
                 if "redir=" in url_final:
                     match = re.search(r'redir=([^&]+)', url_final)
                     if match:
                         video_url = urllib.parse.unquote(match.group(1))
                 else:
                     video_url = url_final
-                
-                st.info(f"Link Real Localizado!")
 
-        # --- PASSO 3: DOWNLOAD DO VÍDEO ---
+        # --- PASSO 2: DOWNLOAD COM DISFARCE (REFERER) ---
         tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        
+        # O segredo está nestas opções abaixo para enganar o bloqueio
         ydl_opts = {
             'format': 'best',
             'outtmpl': tfile.name,
             'quiet': True,
+            'no_warnings': True,
             'nocheckcertificate': True,
+            'referer': 'https://shopee.com.br/',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'add_header': ['Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8']
         }
 
-        with st.spinner("⏳ Baixando vídeo..."):
+        with st.spinner("⏳ Extraindo arquivo de vídeo..."):
             with YoutubeDL(ydl_opts) as ydl:
                 ydl.download([video_url])
             
@@ -81,10 +83,11 @@ if url_input:
                         st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption="Sugestão de Capa")
                     cap.release()
         else:
-            st.error("Não foi possível baixar. Tente baixar o vídeo no app e subir manualmente abaixo.")
+            st.error("A Shopee bloqueou o download automático. Tente subir o arquivo manualmente abaixo.")
 
     except Exception as e:
-        st.error(f"Erro ao processar link: {e}")
+        st.error(f"Erro ao processar: {e}")
 
 st.divider()
-uploaded_file = st.file_uploader("Ou suba o vídeo manualmente:", type=["mp4"])
+st.info("Plano B: Se o link falhar, baixe o vídeo no App da Shopee e suba aqui:")
+uploaded_file = st.file_uploader("Upload do Vídeo", type=["mp4"])
