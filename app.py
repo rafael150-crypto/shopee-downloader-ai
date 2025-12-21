@@ -13,7 +13,7 @@ st.title("🚀 Gerador Viral: Shopee & Shorts")
 st.write("Suba o vídeo da Shopee para remover marca d'água (IA) e gerar estratégia.")
 
 # 1. CONFIGURAÇÃO DA API
-API_KEY = "SUA_NOVA_CHAVE_AQUI" # Coloque sua chave aqui
+API_KEY = "AIzaSyCVtbBNnoqftmf8dZ5otTErswiBnYK7XZ0" # Coloque sua chave aqui
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('models/gemini-2.5-flash')
 
