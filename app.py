@@ -5,6 +5,9 @@ import os
 import re
 import tempfile
 import time
+import requests
+import urllib.parse
+from yt_dlp import YoutubeDL
 
 # Configuração da Página
 st.set_page_config(page_title="Shopee Viral Bot", page_icon="🛍️")
@@ -15,51 +18,73 @@ API_KEY = "AIzaSyCVtbBNnoqftmf8dZ5otTErswiBnYK7XZ0"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('models/gemini-2.5-flash')
 
-# 2. INTERFACE DE ENTRADA
-st.info("💡 Dica: Como a Shopee bloqueia links diretos, a forma mais rápida é baixar o vídeo no App da Shopee e subir o arquivo aqui.")
+# 2. CAIXA DE LINK (DIÁLOGO)
+st.subheader("🔗 Enviar por Link")
+url_input = st.text_input("Cole o link da Shopee aqui:", placeholder="https://br.shp.ee/...")
 
-arquivo_video = st.file_uploader("Suba o vídeo da Shopee aqui", type=["mp4", "mov", "avi"])
+# 3. UPLOAD MANUAL (CASO O LINK FALHE)
+st.subheader("📁 Ou suba o arquivo")
+uploaded_file = st.file_uploader("Se o link der erro, baixe no app e suba aqui:", type=["mp4", "mov"])
 
-# Se o usuário subir o arquivo
-if arquivo_video:
-    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    tfile.write(arquivo_video.read())
-    
-    st.video(tfile.name)
-    
+video_path = None
+
+# Lógica para processar o Link
+if url_input:
+    try:
+        tfile_link = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+        # Tenta seguir o link curto
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url_input, headers=headers, allow_redirects=True, timeout=10)
+        final_url = res.url
+        
+        # Se for link da Shopee com redirecionamento, tenta limpar
+        if "redir=" in final_url:
+            match = re.search(r'redir=([^&]+)', final_url)
+            if match:
+                final_url = urllib.parse.unquote(match.group(1))
+
+        ydl_opts = {'format': 'best', 'outtmpl': tfile_link.name, 'quiet': True}
+        
+        with st.spinner("⏳ Tentando baixar pelo link..."):
+            with YoutubeDL(ydl_opts) as ydl:
+                ydl.download([final_url])
+            video_path = tfile_link.name
+            st.success("✅ Vídeo baixado pelo link!")
+    except Exception:
+        st.error("❌ Não foi possível baixar pelo link (Bloqueio da Shopee). Use a opção de Upload abaixo.")
+
+# Lógica para processar o Upload (Se não houver link ou se o link falhar)
+if uploaded_file and not video_path:
+    tfile_upload = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
+    tfile_upload.write(uploaded_file.read())
+    video_path = tfile_upload.name
+    st.success("✅ Vídeo carregado via Upload!")
+
+# 4. ANÁLISE DA IA (COMUM PARA AMBOS)
+if video_path:
+    st.video(video_path)
     if st.button("✨ GERAR ESTRATÉGIA VIRAL"):
         try:
-            with st.spinner("🤖 IA Analisando o vídeo..."):
-                # Enviar para o Gemini
-                video_file = genai.upload_file(path=tfile.name, mime_type="video/mp4")
-                
+            with st.spinner("🤖 IA Analisando..."):
+                video_file = genai.upload_file(path=video_path, mime_type="video/mp4")
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
-                prompt = """
-                Analise este vídeo da Shopee e crie:
-                1. Um título impossível de não clicar (curiosidade).
-                2. 5 hashtags de alto volume.
-                3. Uma descrição curta que gere desejo de compra.
-                4. Escreva 'CAPA: X' (onde X é o melhor segundo do vídeo).
-                """
-                
+                prompt = "Analise para YouTube Shorts: Título viral com emojis, 5 hashtags e descrição. Termine com 'CAPA: X' (segundo sugerido)."
                 response = model.generate_content([video_file, prompt])
                 
-                st.subheader("📝 Conteúdo para Copiar")
+                st.subheader("📝 Conteúdo Sugerido")
                 st.code(response.text.split('CAPA:')[0], language="")
                 
-                # Gerar a imagem da capa
+                # Mostrar Capa
                 match = re.search(r'CAPA:\s*(\d+)', response.text)
                 segundo = int(match.group(1)) if match else 1
-                cap = cv2.VideoCapture(tfile.name)
+                cap = cv2.VideoCapture(video_path)
                 cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
                 ret, frame = cap.read()
                 if ret:
-                    st.subheader(f"🖼️ Sugestão de Capa (Seg {segundo})")
-                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption=f"Sugestão de Capa (Seg {segundo})")
                 cap.release()
-                
         except Exception as e:
             st.error(f"Erro na IA: {e}")
