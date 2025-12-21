@@ -11,7 +11,7 @@ st.set_page_config(page_title="Estrategista AI", page_icon="📈")
 st.title("📈 Estrategista de Vendas AI")
 
 # 1. CONFIGURAÇÃO DA API
-API_KEY = "AIzaSyAR9yPU8zc-pOCWKWn5JCLy7ykvRXA2k8g"
+API_KEY = "AIzaSyDMX5oRlHEnvlvM7rWLo60yutaNeVBPk3o"
 genai.configure(api_key=API_KEY)
 
 # --- FUNÇÃO DE CONEXÃO SEGURA ---
