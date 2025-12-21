@@ -2,3 +2,4 @@ google-generativeai
 opencv-python-headless
 streamlit
 yt-dlp
+google-generativeai>=0.7.2
