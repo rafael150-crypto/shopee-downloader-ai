@@ -5,35 +5,52 @@ import os
 import re
 import tempfile
 import time
+import urllib.parse
 
 # Configuração da Página
-st.set_page_config(page_title="BrendaBot | Achadinhos", page_icon="🛍️")
+st.set_page_config(page_title="BrendaBot | Automação Achadinhos", page_icon="🚀")
 
-# Estilo Profissional
+# Estilo para os botões e interface
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; border-radius: 10px; height: 3em; font-weight: bold; }
-    .download-btn { 
-        display: block; width: 100%; text-align: center; background-color: #00b894; 
-        color: white; padding: 10px; border-radius: 10px; text-decoration: none; font-weight: bold;
+    .main { background-color: #f5f5f5; }
+    .stButton>button { width: 100%; border-radius: 10px; font-weight: bold; }
+    .step-card { 
+        background-color: white; padding: 20px; border-radius: 15px; 
+        border-left: 5px solid #EE4D2D; margin-bottom: 20px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
+    }
+    .magic-link {
+        display: block; width: 100%; text-align: center; background-color: #EE4D2D; 
+        color: white !important; padding: 12px; border-radius: 10px; 
+        text-decoration: none; font-weight: bold; margin-top: 10px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("🚀 Robô de Achadinhos Pro")
+st.title("🚀 Robô Viral: Meio-Termo")
 
-# --- PASSO 1: DOWNLOAD ---
-st.subheader("1️⃣ Primeiro, baixe o vídeo sem marca d'água")
-st.write("Copie o link da Shopee e use o site abaixo para baixar o vídeo limpo:")
-st.markdown('<a href="https://svdown.tech/" target="_blank" class="download-btn">🔗 ABRIR SVDOWN (BAIXAR VÍDEO)</a>', unsafe_allow_html=True)
+# --- PASSO 1: O ATALHO ---
+st.markdown('<div class="step-card">', unsafe_allow_html=True)
+st.subheader("1️⃣ Link da Shopee")
+url_shopee = st.text_input("Cole o link aqui para gerar o atalho:")
 
-st.divider()
+if url_shopee:
+    # Prepara o link para o SnapShopee (que é um dos mais rápidos hoje)
+    # Alguns sites aceitam o link via parâmetro na URL
+    link_atalho = f"https://snapshopee.app/pt?url={urllib.parse.quote(url_shopee)}"
+    
+    st.write("Clique no botão abaixo para baixar sem marca d'água:")
+    st.markdown(f'<a href="{link_atalho}" target="_blank" class="magic-link">📥 BAIXAR VÍDEO AGORA</a>', unsafe_allow_html=True)
+    st.caption("O site de download abrirá em outra aba com seu link já enviado.")
+st.markdown('</div>', unsafe_allow_html=True)
 
-# --- PASSO 2: IA ---
-st.subheader("2️⃣ Agora, deixe a IA criar seu Post")
-uploaded_file = st.file_uploader("Suba o vídeo que você baixou do SVDown", type=["mp4", "mov"])
+# --- PASSO 2: A INTELIGÊNCIA ---
+st.markdown('<div class="step-card">', unsafe_allow_html=True)
+st.subheader("2️⃣ Análise Viral")
+uploaded_file = st.file_uploader("Suba o vídeo baixado aqui:", type=["mp4", "mov"])
 
-# 1. CONFIGURAÇÃO DA API
+# Configuração da API
 API_KEY = "AIzaSyCVtbBNnoqftmf8dZ5otTErswiBnYK7XZ0"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('models/gemini-1.5-flash')
@@ -42,40 +59,35 @@ if uploaded_file:
     tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
     tfile.write(uploaded_file.read())
     
-    st.video(tfile.name)
-    
-    if st.button("✨ GERAR TÍTULO, CAPA E TAGS"):
+    if st.button("✨ GERAR TÍTULO, CAPA E LEGENDA"):
         try:
-            with st.spinner("🤖 Analisando o produto..."):
+            with st.spinner("🤖 Analisando vídeo..."):
                 video_file = genai.upload_file(path=tfile.name, mime_type="video/mp4")
                 while video_file.state.name == "PROCESSING":
                     time.sleep(2)
                     video_file = genai.get_file(video_file.name)
                 
                 prompt = """
-                Atue como especialista em marketing de afiliados. Analise o vídeo e retorne:
-                1. Título Viral com Emojis.
-                2. 5 Hashtags de alto engajamento.
-                3. Uma chamada para ação (CTA) para clicar no link da bio.
-                4. 'CAPA: X' (X é o segundo exato para a melhor capa).
-                NÃO use rótulos como TITULO:.
+                Analise este vídeo de produto e crie uma estratégia de vendas:
+                1. Título 'Clickbait' ético com emojis.
+                2. Legenda curta focada em dor/desejo.
+                3. 5 Hashtags virais.
+                4. Escreva 'CAPA: X' (segundo sugerido).
                 """
-                
                 response = model.generate_content([video_file, prompt])
                 
-                st.success("📝 Conteúdo Pronto!")
-                texto_limpo = "\n".join([l for l in response.text.split('\n') if "CAPA:" not in l])
-                st.code(texto_limpo, language="")
+                st.success("✅ Estratégia Pronta!")
+                st.code(response.text.split('CAPA:')[0], language="")
                 
-                # Sugestão de Capa
+                # Capa
                 match = re.search(r'CAPA:\s*(\d+)', response.text)
                 segundo = int(match.group(1)) if match else 1
                 cap = cv2.VideoCapture(tfile.name)
                 cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
                 ret, frame = cap.read()
                 if ret:
-                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption=f"Sugestão de Capa no Segundo {segundo}")
+                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption="Sugestão de Capa")
                 cap.release()
-                
         except Exception as e:
-            st.error(f"Erro na IA: {e}")
+            st.error(f"Erro: {e}")
+st.markdown('</div>', unsafe_allow_html=True)
