@@ -25,7 +25,7 @@ st.title("🚀 Robô de Achadinhos Pro")
 # --- PASSO 1: DOWNLOAD ---
 st.subheader("1️⃣ Primeiro, baixe o vídeo sem marca d'água")
 st.write("Copie o link da Shopee e use o site abaixo para baixar o vídeo limpo:")
-st.markdown('<a href="https://svdown.com/" target="_blank" class="download-btn">🔗 ABRIR SVDOWN (BAIXAR VÍDEO)</a>', unsafe_allow_html=True)
+st.markdown('<a href="https://svdown.tech/" target="_blank" class="download-btn">🔗 ABRIR SVDOWN (BAIXAR VÍDEO)</a>', unsafe_allow_html=True)
 
 st.divider()
 
