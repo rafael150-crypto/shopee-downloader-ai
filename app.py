@@ -5,74 +5,106 @@ import os
 import re
 import tempfile
 import time
+from PIL import Image
 
 # Configuração da Página
-st.set_page_config(page_title="Estrategista AI", page_icon="📈")
-st.title("📈 Estrategista de Vendas AI")
+st.set_page_config(page_title="BrendaBot Meta Expert", page_icon="💙", layout="wide")
+st.title("💙 BrendaBot: Validador de Reels e Fotos (Facebook)")
 
-# 1. CONFIGURAÇÃO DA API
-API_KEY = "AIzaSyDMX5oRlHEnvlvM7rWLo60yutaNeVBPk3o"
+# Configurar API
+API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
 genai.configure(api_key=API_KEY)
+model = genai.GenerativeModel('models/gemini-2.5-flash')
 
-# --- FUNÇÃO DE CONEXÃO SEGURA ---
-def inicializar_modelo():
-    # Tentamos os 3 nomes que o Google costuma aceitar sem erro 404
-    for nome in ["gemini-1.5-flash", "models/gemini-1.5-flash", "gemini-1.5-flash-latest"]:
-        try:
-            m = genai.GenerativeModel(nome)
-            # Teste rápido de configuração
-            return m
-        except:
-            continue
-    return genai.GenerativeModel("gemini-1.5-flash")
+# Upload aceita Vídeo ou Imagem
+uploaded_file = st.file_uploader("Suba seu Reels ou Foto para análise...", type=["mp4", "mov", "avi", "jpg", "jpeg", "png"])
 
-model = inicializar_modelo()
-
-# 2. UPLOAD DO VÍDEO
-uploaded_file = st.file_uploader("Selecione o vídeo do produto", type=["mp4", "mov"])
-
-if uploaded_file:
-    tfile = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    tfile.write(uploaded_file.read())
+if uploaded_file is not None:
+    is_video = uploaded_file.type.startswith('video')
     
-    st.video(tfile.name)
+    # Processamento de arquivo temporário
+    suffix = '.mp4' if is_video else '.jpg'
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tfile:
+        tfile.write(uploaded_file.read())
+        file_path = tfile.name
     
-    if st.button("✨ GERAR ESTRATÉGIA VIRAL"):
-        try:
-            with st.spinner("🤖 Analisando com conexão estável..."):
-                # Upload para o servidor do Google
-                video_file = genai.upload_file(path=tfile.name)
-                
-                # Aguarda processamento
-                while video_file.state.name == "PROCESSING":
-                    time.sleep(2)
-                    video_file = genai.get_file(video_file.name)
-                
-                prompt = "Analise este vídeo. Forneça 3 títulos virais, legenda persuasiva e 5 tags. Termine com 'CAPA: X'."
-                
-                # Chamada da IA
-                response = model.generate_content([video_file, prompt])
-                
-                st.success("✅ Conteúdo gerado!")
-                st.code(re.sub(r'CAPA:.*', '', response.text).strip())
-                
-                # Extração da Capa
-                match = re.search(r'CAPA:\s*(\d+)', response.text)
+    st.info(f"🕵️ Analisando {'Reels' if is_video else 'Foto'} conforme as políticas da Meta...")
+    
+    try:
+        # Upload para a IA
+        media_file = genai.upload_file(path=file_path)
+        
+        while media_file.state.name == "PROCESSING":
+            time.sleep(2)
+            media_file = genai.get_file(media_file.name)
+            
+        # PROMPT ESPECIALIZADO EM POLÍTICAS DO FACEBOOK
+        prompt = """
+        Atue como Especialista em Monetização e Tráfego Orgânico do Facebook (Meta).
+        Analise este arquivo e retorne o relatório RIGOROSAMENTE nesta ordem:
+
+        ### 🚨 VALIDAÇÃO DE POLÍTICAS DO FACEBOOK
+        1. **ORIGINALIDADE**: (Este conteúdo corre risco de ser marcado como 'Originalidade Limitada'? O Facebook pune vídeos que parecem baixados de outras redes).
+        2. **RISCO DE DESMONETIZAÇÃO**: (Analise se há violência, nudez implícita, linguagem ofensiva ou temas sensíveis que bloqueiam os 'Anúncios no Reels').
+        3. **POLÍTICA DE SPAM/CLICKBAIT**: (O título ou a imagem tentam enganar o usuário? O Facebook reduz o alcance de posts que forçam o 'curtir e compartilhar').
+
+        ### 📈 POTENCIAL DE DISTRIBUIÇÃO (ALCANCE)
+        4. **PROBABILIDADE DE RECOMENDAÇÃO**: (Chance de aparecer no 'Sugeridos para você' de 0 a 100%).
+        5. **RETENÇÃO VISUAL**: (Para Reels: Onde o vídeo fica cansativo? Para Foto: A imagem é nítida e centralizada para o feed mobile?).
+
+        ### ✍️ SUGESTÃO DE POSTAGEM (MÉTODO META)
+        6. **LEGENDA PARA FACEBOOK**: (Legendas no FB podem ser maiores. Crie uma que gere conversas).
+        7. **3 HASHTAGS ESTRATÉGICAS**: (No Facebook, menos é mais).
+        8. **PERGUNTA QUE GERA COMPARTILHAMENTO**: (O algoritmo do FB prioriza o compartilhamento sobre o like).
+
+        ### 🌍 TRADUÇÃO
+        9. Legenda resumida em Inglês.
+
+        ### 🖼️ RECOMENDAÇÃO DE CAPA (Apenas para Vídeo)
+        Escreva ao final apenas: 'CAPA: X' (segundo sugerido).
+        """
+        
+        response = model.generate_content([media_file, prompt])
+        texto_ia = response.text
+        
+        col1, col2 = st.columns([1.2, 0.8])
+        
+        with col1:
+            st.subheader("📋 Relatório Meta Business")
+            texto_exibicao = re.sub(r'CAPA:\s*\d+', '', texto_ia)
+            st.markdown(texto_exibicao)
+            
+            st.divider()
+            st.subheader("📋 Copiar Legenda")
+            st.text_area("Pronto para o Facebook:", texto_exibicao, height=300)
+        
+        with col2:
+            if is_video:
+                match = re.search(r'CAPA:\s*(\d+)', texto_ia)
                 segundo = int(match.group(1)) if match else 1
-                cap = cv2.VideoCapture(tfile.name)
-                cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
-                ret, frame = cap.read()
-                if ret:
-                    st.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), caption="Sugestão de Capa")
-                cap.release()
                 
-                # Limpa cota de armazenamento
-                genai.delete_file(video_file.name)
-
-        except Exception as e:
-            if "404" in str(e):
-                st.error("Erro 404: O modelo não foi encontrado. Tente criar uma NOVA chave de API no Google AI Studio.")
-            elif "429" in str(e):
-                st.warning("Limite atingido. Aguarde 60 segundos.")
+                cap = cv2.VideoCapture(file_path)
+                cap.set(cv2.CAP_PROP_POS_MSEC, segundo * 1000)
+                success, frame = cap.read()
+                if success:
+                    st.subheader("🖼️ Thumbnail para Reels")
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    st.image(frame_rgb, use_container_width=True)
+                cap.release()
             else:
-                st.error(f"Erro: {e}")
+                st.subheader("🖼️ Preview da Foto")
+                st.image(file_path, use_container_width=True)
+            
+            # Alerta de Política
+            if any(palavra in texto_ia.upper() for palavra in ["ARRISCADO", "CRÍTICO", "DESMONETIZAÇÃO"]):
+                st.error("⚠️ CUIDADO: Este post pode violar as políticas de alcance do Facebook.")
+            else:
+                st.success("✅ SEGURO: Conteúdo pronto para distribuição no Facebook.")
+
+        genai.delete_file(media_file.name)
+        
+    except Exception as e:
+        st.error(f"Erro na análise: {e}")
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
