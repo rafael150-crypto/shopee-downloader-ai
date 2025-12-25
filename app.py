@@ -39,7 +39,7 @@ st.title("🛡️ BrendaBot Meta Sentinel Pro")
 st.caption("Validador de Políticas e Gerador de Ativos para Facebook (Reels & Fotos)")
 
 # Configurar API
-API_KEY = "AIzaSyCiJyxLVYVgI7EiTuQmkQGTi1nWiQn9g_8"
+API_KEY = "AIzaSyAXMHYg7kRRA74fwOXxH9mP3hqF4H2h2sg"
 genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel('models/gemini-2.5-flash')
 
